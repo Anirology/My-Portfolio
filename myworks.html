@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Things I've Built</title>
+    <style>
+        /* --- CSS Variables & Themes --- */
+        :root[data-theme="light"] {
+            --bg-color: #d2e8cb;          /* Light sage green from reference image */
+            --text-color: #0b2e24;        /* Dark forest green from reference image */
+            --card-bg: #1c4e3f;           /* Card background from reference image */
+            --browser-header: #143b30;    /* Darker trim for browser header */
+            --dot-color: rgba(255, 255, 255, 0.3);
+            --toggle-bg: #1c4e3f;
+            --toggle-text: #d2e8cb;
+            --wave-color: rgba(28, 78, 63, 0.06);
+        }
+
+        :root[data-theme="dark"] {
+            --bg-color: #0b1a14;          /* Deep dark forest green */
+            --text-color: #d2e8cb;        /* Light sage green text */
+            --card-bg: #143b30;           /* Medium dark card */
+            --browser-header: #0d261f;
+            --dot-color: rgba(210, 232, 203, 0.2);
+            --toggle-bg: #d2e8cb;
+            --toggle-text: #0b2e24;
+            --wave-color: rgba(210, 232, 203, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            padding: 40px 20px;
+        }
+
+        /* --- Interactive Background Canvas --- */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* --- Header & Title --- */
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            animation: float 4s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        h1 em {
+            font-style: italic;
+            font-family: Georgia, serif;
+            font-weight: normal;
+        }
+
+        /* Subtle Floating Animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* --- Controls & Utilities --- */
+        .controls {
+            position: fixed;
+            top: 40px;
+            right: 40px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transition: transform 0.2s ease, background-color 0.3s;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: scale(1.08);
+        }
+
+        .btn svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        .theme-toggle {
+            background-color: var(--toggle-bg);
+            color: var(--toggle-text);
+        }
+
+        /* --- Cards Grid Layout --- */
+        .grid-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Exactly 2 cards per row */
+            gap: 40px;
+            padding-bottom: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr; /* Fallback for mobile viewports */
+                gap: 25px;
+            }
+            .controls {
+                top: 20px;
+                right: 20px;
+            }
+        }
+
+        /* --- Browser Mockup Card --- */
+        .card-link {
+            text-decoration: none;
+            display: block;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
+        }
+
+        .card-link:hover {
+            transform: translateY(-5px) scale(1.01);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        .browser-card {
+            background-color: var(--card-bg);
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Browser Header Window Trim */
+        .browser-header {
+            background-color: var(--browser-header);
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 6px;
+        }
+
+        .browser-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--dot-color);
+        }
+
+        /* Video / Content Window */
+        .video-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background-color: var(--card-bg);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Show video and hide placeholder content on hover */
+        .card-link:hover video {
+            opacity: 1;
+        }
+
+        /* Fallback / Mock project illustration inside cards */
+        .card-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.4);
+            font-weight: 500;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            transition: opacity 0.3s;
+        }
+
+        .card-link:hover .card-placeholder {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Interactive Background Pattern -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Navigation Buttons -->
+    <div class="controls">
+        <button class="btn theme-toggle" id="themeToggle" title="Toggle Theme" aria-label="Toggle dark/light mode">
+            <!-- Moon Icon -->
+            <svg viewBox="0 0 24 24"><path d="M12.3 22h-.1c-5.5 0-10-4.5-10-10 0-4.8 3.5-8.9 8.2-9.8.5-.1 1 .2 1.2.7.2.5 0 1.1-.4 1.4-2.8 1.9-4.3 5.2-3.7 8.6.6 3.4 3.3 6.1 6.7 6.7 3.4.6 6.7-1 8.6-3.7.3-.4.9-.6 1.4-.4.5.2.8.7.7 1.2-.9 4.7-5 8.2-9.8 8.3z"/></svg>
+        </button>
+        <a href="index.html" class="btn" title="Go Home" aria-label="Go to home page">
+            <!-- Home Icon (Matches look in Things I've Built.png) -->
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </a>
+    </div>
+
+    <header>
+        <h1 id="pageTitle">Things I've <em>Built</em></h1>
+    </header>
+
+    <!-- 10 Browser Card Holders Layout Grid -->
+    <main class="grid-container">
+        
+        <!-- Card 1 -->
+        <a href="https://github.com/yourusername/repo1" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 01</div>
+                    <video loop muted playsinline src="vid.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 2 -->
+        <a href="https://github.com/yourusername/repo2" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 02</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-abstract-laser-lights-background-42304-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 3 -->
+        <a href="https://github.com/yourusername/repo3" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 03</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-tech-screens-with-charts-and-data-analysis-41655-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 4 -->
+        <a href="https://github.com/yourusername/repo4" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 04</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-cyber-security-code-on-a-screen-41657-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 5 -->
+        <a href="https://github.com/yourusername/repo5" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 05</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-matrix-style-green-code-falling-41653-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 6 -->
+        <a href="https://github.com/yourusername/repo6" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 06</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-code-running-on-a-computer-screen-22244-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 7 -->
+        <a href="https://github.com/yourusername/repo7" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 07</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-abstract-laser-lights-background-42304-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 8 -->
+        <a href="https://github.com/yourusername/repo8" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 08</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-tech-screens-with-charts-and-data-analysis-41655-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 9 -->
+        <a href="https://github.com/yourusername/repo9" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 09</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-cyber-security-code-on-a-screen-41657-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 10 -->
+        <a href="https://github.com/yourusername/repo10" class="card-link" target="_blank" rel="noopener">
+            <div class="browser-card">
+                <div class="browser-header"><div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div></div>
+                <div class="video-container">
+                    <div class="card-placeholder">PROJECT 10</div>
+                    <video loop muted playsinline src="https://assets.mixkit.co/videos/preview/mixkit-matrix-style-green-code-falling-41653-large.mp4"></video>
+                </div>
+            </div>
+        </a>
+
+    </main>
+
+    <script>
+        /* --- Video Play/Pause Management --- */
+        const cards = document.querySelectorAll('.card-link');
+        
+        cards.forEach(card => {
+            const video = card.querySelector('video');
+            
+            card.addEventListener('mouseenter', () => {
+                if(video) {
+                    video.play().catch(error => {
+                        // Catches browser auto-play prevention if any context restrictions trigger
+                        console.log("Autoplay playback setup handled:", error);
+                    });
+                }
+            });
+
+            card.addEventListener('mouseleave', () => {
+                if(video) {
+                    video.pause();
+                    video.currentTime = 0; // Reset video clip placement on mouse leave
+                }
+            });
+        });
+
+        /* --- Dark/Light Mode Theme Selection Logic --- */
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const rootElement = document.documentElement;
+
+        themeToggleBtn.addEventListener('click', () => {
+            const activeTheme = rootElement.getAttribute('data-theme');
+            const targetTheme = activeTheme === 'light' ? 'dark' : 'light';
+            rootElement.setAttribute('data-theme', targetTheme);
+        });
+
+        /* --- Canvas Wave Mouse-Interactive Background --- */
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        let mouse = { x: width / 2, y: height / 2 };
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        let animationFrameId;
+        let phase = 0;
+
+        function renderWaves() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Fetch dynamic CSS color values depending on active theme context
+            const waveColor = getComputedStyle(document.documentElement).getPropertyValue('--wave-color').trim();
+            ctx.strokeStyle = waveColor;
+            ctx.lineWidth = 1.5;
+
+            // Generate 4 flowing overlapping lines 
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                
+                // Track wave mechanics influenced dynamically by the mouse position offset
+                let waveOffset = i * 40;
+                let mouseInfluence = (mouse.x / width) * 4;
+
+                for (let x = 0; x <= width; x += 20) {
+                    // Classic wave processing equation
+                    let y = height * 0.75 
+                            + Math.sin(x * 0.002 + phase + waveOffset) * 60 
+                            + Math.cos(x * 0.001 - phase * 0.5 + mouseInfluence) * 30;
+                    
+                    // Modulate specific height areas where mouse y sits
+                    let distanceToMouse = Math.abs(x - mouse.x);
+                    if(distanceToMouse < 300) {
+                        let factor = (300 - distanceToMouse) / 300;
+                        y += (mouse.y - (height * 0.75)) * 0.15 * factor;
+                    }
+
+                    if (x === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            phase += 0.008; // Rate of natural passive fluid wave movement
+            animationFrameId = requestAnimationFrame(renderWaves);
+        }
+
+        renderWaves();
+    </script>
+</body>
+</html>
